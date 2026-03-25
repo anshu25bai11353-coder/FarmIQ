@@ -191,3 +191,85 @@ class CropYieldModel:
         self.best_model = joblib.load(filepath)
         print(f"Model loaded from {filepath}")
         return self.best_model
+    
+
+    #src/profit_calculator.py
+
+class ProfitCalculator:
+    
+    crop_prices = {
+        'Rice': 22000, 'Wheat': 24000, 'Maize': 20000, 'Sugarcane': 3500,
+        'Cotton': 60000, 'Groundnut': 55000, 'Soybean': 45000,
+        'Potato': 15000, 'Onion': 18000, 'Tomato': 12000
+    }
+    
+    input_costs = {
+        'Rice': {'seeds': 4000, 'fertilizer': 5000, 'pesticides': 3000, 'labor': 8000, 'irrigation': 2000},
+        'Wheat': {'seeds': 3500, 'fertilizer': 4500, 'pesticides': 2500, 'labor': 7000, 'irrigation': 1500},
+        'Maize': {'seeds': 3000, 'fertilizer': 4000, 'pesticides': 2000, 'labor': 6000, 'irrigation': 1500},
+        'Sugarcane': {'seeds': 8000, 'fertilizer': 10000, 'pesticides': 5000, 'labor': 15000, 'irrigation': 3000},
+        'Cotton': {'seeds': 5000, 'fertilizer': 6000, 'pesticides': 4000, 'labor': 10000, 'irrigation': 2000},
+        'Groundnut': {'seeds': 4000, 'fertilizer': 3500, 'pesticides': 2000, 'labor': 5000, 'irrigation': 1000},
+        'Soybean': {'seeds': 3500, 'fertilizer': 4000, 'pesticides': 2500, 'labor': 6000, 'irrigation': 1200},
+        'Potato': {'seeds': 6000, 'fertilizer': 5000, 'pesticides': 3000, 'labor': 8000, 'irrigation': 1500},
+        'Onion': {'seeds': 5000, 'fertilizer': 4500, 'pesticides': 3000, 'labor': 7000, 'irrigation': 1200},
+        'Tomato': {'seeds': 4000, 'fertilizer': 5000, 'pesticides': 3500, 'labor': 8000, 'irrigation': 1500}
+    }
+    
+    def __init__(self, land_area=1):
+        self.land_area = land_area
+    
+    def calculate_total_cost(self, crop):
+        costs = self.input_costs.get(crop, {'seeds': 4000, 'fertilizer': 4000, 'pesticides': 2000, 'labor': 5000, 'irrigation': 1000})
+        total = sum(costs.values()) * self.land_area
+        return total
+    
+    def calculate_profit(self, crop, yield_tons):
+        price = self.crop_prices.get(crop, 20000)
+        total_yield = yield_tons * self.land_area
+        revenue = total_yield * price
+        cost = self.calculate_total_cost(crop)
+        profit = revenue - cost
+        
+        return {
+            'crop': crop,
+            'yield_tons_per_hectare': yield_tons,
+            'total_yield_tons': total_yield,
+            'market_price': price,
+            'revenue': revenue,
+            'total_cost': cost,
+            'profit': profit,
+            'roi_percentage': (profit / cost) * 100 if cost > 0 else 0
+        }
+    
+    def get_fertilizer_recommendation(self, N, P, K, pH):
+        recs = []
+        if N < 80:
+            recs.append("🌱 Add Nitrogen: Apply Urea or DAP")
+        elif N > 200:
+            recs.append("⚠️ Nitrogen high: Reduce application")
+        else:
+            recs.append("✅ Nitrogen level optimal")
+        
+        if P < 40:
+            recs.append("🌱 Add Phosphorus: Apply SSP or DAP")
+        elif P > 100:
+            recs.append("⚠️ Phosphorus high: Reduce application")
+        else:
+            recs.append("✅ Phosphorus level optimal")
+        
+        if K < 40:
+            recs.append("🌱 Add Potassium: Apply MOP")
+        elif K > 150:
+            recs.append("⚠️ Potassium high: Reduce application")
+        else:
+            recs.append("✅ Potassium level optimal")
+        
+        if pH < 5.5:
+            recs.append("⚖️ Soil too acidic: Apply lime")
+        elif pH > 7.5:
+            recs.append("⚖️ Soil too alkaline: Apply gypsum")
+        else:
+            recs.append("✅ Soil pH optimal")
+        
+        return recs
