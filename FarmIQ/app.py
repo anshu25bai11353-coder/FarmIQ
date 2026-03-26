@@ -3,9 +3,9 @@ import joblib
 import numpy as np
 import pandas as pd
 import streamlit as st
-import matplotlib.pyplot as plt
-import seaborn as sns
-from src.data_loader import ProfitCalculator
+import plotly.express as px
+import plotly.graph_objects as go
+from src.data_loader import ProfitCalculator, load_data
 
 # Page Configuration
 st.set_page_config(
@@ -52,201 +52,187 @@ st.markdown("""
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     </style>
-    """, unsafe_allow_stdio=True)
+    """, unsafe_allow_html=True)
 
 # Helper for robust model loading
 def get_path(filename):
-    # Try current directory
     if os.path.exists(filename):
         return filename
-    # Try relative to script
     script_dir = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(script_dir, filename)
     if os.path.exists(path):
         return path
-    # Try in models folder
     path = os.path.join(script_dir, 'models', filename)
     if os.path.exists(path):
         return path
-    # Try in src/models folder
     path = os.path.join(script_dir, 'src', 'models', filename)
     if os.path.exists(path):
         return path
     return None
 
-# Load model, scaler, and label encoder
+# Load artifacts
 @st.cache_resource
 def load_artifacts():
-    # Try various names for the crop model
     model_path = get_path('crop_yield_model.pkl') or get_path('crop_model.pkl')
-    
     if not model_path:
         st.error("Model file not found! Please run the training script first.")
         return None, None, None
-        
     try:
         model_obj = joblib.load(model_path)
-        # If the loaded object is a dict, select the 'Ensemble' model or the first available
         if isinstance(model_obj, dict):
-            if 'Ensemble' in model_obj:
-                model = model_obj['Ensemble']
-            else:
-                model = next(iter(model_obj.values()))
+            model = model_obj['Ensemble'] if 'Ensemble' in model_obj else next(iter(model_obj.values()))
         else:
             model = model_obj
-            
-        scaler_path = get_path('scaler.pkl')
-        scaler = joblib.load(scaler_path) if scaler_path else None
-        
-        le_path = get_path('label_encoder.pkl')
-        le = joblib.load(le_path) if le_path else None
-        
+        scaler = joblib.load(get_path('scaler.pkl')) if get_path('scaler.pkl') else None
+        le = joblib.load(get_path('label_encoder.pkl')) if get_path('label_encoder.pkl') else None
         return model, scaler, le
     except Exception as e:
         st.error(f"Error loading artifacts: {e}")
         return None, None, None
 
-# Initialize models
+# Initialize session state
+if 'yield_pred' not in st.session_state: st.session_state.yield_pred = 0.0
+
 model, scaler, le = load_artifacts()
+if model is None: st.stop()
 
-if model is None:
-    st.stop()
+# Load Dataset for Heatmap
+@st.cache_data
+def get_dataset():
+    try:
+        return load_data()
+    except:
+        return None
 
-# Sidebar for common inputs
+df_raw = get_dataset()
+
+# Sidebar
 with st.sidebar:
-    st.image("https://img.icons8.com/fluent/96/000000/agriculture.png", width=80)
+    st.image("https://img.freepik.com/premium-vector/modern-farm-logo-vector_658271-1527.jpg?w=360", width=80)
     st.header("Farm Settings")
-    land_area = st.number_input('Land Area (hectare)', min_value=0.1, max_value=100.0, value=1.0, step=0.1)
-    
+    land_area = st.number_input('Land Area (hectares)', min_value=0.1, max_value=100.0, value=1.0, step=0.1)
     crop_options = ['Rice', 'Wheat', 'Maize', 'Sugarcane', 'Cotton', 'Groundnut', 'Soybean', 'Potato', 'Onion', 'Tomato']
     crop = st.selectbox('Select Crop', crop_options)
-    
     st.divider()
-    st.info("Input the soil and weather conditions of your farm to get AI-powered recommendations.")
+    st.info("AI-Powered Agriculture Insight System")
 
-# Main content
+# Main
 st.title('🌾 Smart Agri Advisor')
-st.markdown("### Optimize Your Harvest with AI-Driven Insights")
-
-# Input columns
 tab1, tab2 = st.tabs(["📊 Prediction & Analysis", "📈 Trends & Importance"])
 
 with tab1:
     st.subheader('Field Parameters')
     col1, col2, col3 = st.columns(3)
     with col1:
-        N = st.number_input('Nitrogen (N) [mg/kg]', min_value=0, max_value=300, value=100)
-        P = st.number_input('Phosphorus (P) [mg/kg]', min_value=0, max_value=150, value=50)
+        N = st.number_input('Nitrogen (N)', min_value=0.0, max_value=300.0, value=100.0)
+        P = st.number_input('Phosphorus (P)', min_value=0.0, max_value=150.0, value=50.0)
     with col2:
-        K = st.number_input('Potassium (K) [mg/kg]', min_value=0, max_value=200, value=50)
-        pH = st.number_input('Soil pH', min_value=3.0, max_value=10.0, value=6.5, step=0.01)
+        K = st.number_input('Potassium (K)', min_value=0.0, max_value=200.0, value=50.0)
+        pH = st.number_input('Soil pH', min_value=3.0, max_value=10.0, value=6.5, step=0.1)
     with col3:
-        temperature = st.number_input('Temperature (°C)', min_value=0.0, max_value=50.0, value=25.0, step=0.1)
-        humidity = st.number_input('Humidity (%)', min_value=0.0, max_value=100.0, value=70.0, step=0.1)
+        temperature = st.number_input('Temp (°C)', min_value=0.0, max_value=50.0, value=25.0, step=0.1)
+        humidity = st.number_input('Humidity (%)', min_value=0.0, max_value=100.0, value=70.0, step=1.0)
+    rainfall = st.slider('Annual Rainfall (mm)', 0.0, 500.0, 150.0)
+
+    # Core Prediction Logic
+    try:
+        crop_encoded = crop_options.index(crop)
+    except:
+        crop_encoded = 0
     
-    rainfall = st.slider('Annual Rainfall (mm)', min_value=0.0, max_value=500.0, value=150.0, step=0.1)
+    n_features = getattr(model, 'n_features_in_', 8)
+    X_raw = np.array([[N, P, K, pH, temperature, humidity, rainfall, crop_encoded]])
+    X_input = X_raw[:, :n_features]
+    X_scaled = scaler.transform(X_input) if scaler else X_input
+    
+    st.session_state.yield_pred = float(model.predict(X_scaled)[0])
 
-    if st.button('🚀 Predict Yield & Profitability'):
-        # Prepare input
-        try:
-            crop_encoded = crop_options.index(crop)
-        except ValueError:
-            crop_encoded = 0
-            
-        X_full = np.array([[N, P, K, pH, temperature, humidity, rainfall, crop_encoded]])
-        
-        # Check model input feature count
-        n_features = getattr(model, 'n_features_in_', 8)
-        if n_features == 7:
-            X = X_full[:, :7]
-        else:
-            X = X_full
-            
-        if scaler:
-            X_scaled = scaler.transform(X)
-        else:
-            X_scaled = X
-            
-        # Predict yield
-        yield_pred = model.predict(X_scaled)[0]
-        yield_pred_float = float(yield_pred)
-            
-        # Display Results
-        st.divider()
-        res_col1, res_col2 = st.columns(2)
-        
-        with res_col1:
-            st.markdown("#### 🎯 Prediction Results")
-            st.metric("Estimated Yield", f"{yield_pred_float:.2f} t/ha")
-            st.success(f"High probability of successful harvest for **{crop}**.")
-            
-            # Fertilizer recommendations
-            st.markdown("#### 🌱 Soil Management")
-            profit_calc = ProfitCalculator(land_area=land_area)
-            recs = profit_calc.get_fertilizer_recommendation(N, P, K, pH)
-            for rec in recs:
-                st.write(rec)
+    st.divider()
+    res_col1, res_col2 = st.columns(2)
+    with res_col1:
+        st.markdown("#### 🎯 Yield Forecast")
+        st.metric("Estimated Yield", f"{st.session_state.yield_pred:.2f} t/ha")
+        st.success(f"Optimized conditions identified for **{crop}**.")
+        profit_calc = ProfitCalculator(land_area=land_area)
+        for rec in profit_calc.get_fertilizer_recommendation(N, P, K, pH):
+            st.write(rec)
 
-        with res_col2:
-            st.markdown("#### 💰 Financial Analysis")
-            profit = profit_calc.calculate_profit(crop, yield_pred_float)
-            
-            p_col1, p_col2 = st.columns(2)
-            p_col1.metric("Revenue", f"₹{profit['revenue']:,.0f}")
-            p_col1.metric("Net Profit", f"₹{profit['profit']:,.0f}")
-            p_col2.metric("Total Cost", f"₹{profit['total_cost']:,.0f}")
-            p_col2.metric("ROI", f"{profit['roi_percentage']:.1f}%")
+    with res_col2:
+        st.markdown("#### 💰 Financial Analysis")
+        p = profit_calc.calculate_profit(crop, st.session_state.yield_pred)
+        c1, c2 = st.columns(2)
+        c1.metric("Revenue", f"₹{p['revenue']:,.0f}")
+        c1.metric("Net Profit", f"₹{p['profit']:,.0f}")
+        c2.metric("Total Cost", f"₹{p['total_cost']:,.0f}")
+        c2.metric("ROI", f"{p['roi_percentage']:.1f}%")
 
 with tab2:
-    st.subheader('Model Insights & Future Projections')
+    st.subheader('Interactive Model Insights')
     
-    # Feature Importance
-    def get_importances(m):
-        if hasattr(m, 'steps'): m = m.steps[-1][1]
-        if hasattr(m, 'estimators_'):
-            importances_list = []
-            for estimator in m.estimators_:
-                est = estimator.steps[-1][1] if hasattr(estimator, 'steps') else estimator
-                if hasattr(est, 'feature_importances_'): importances_list.append(est.feature_importances_)
-                elif hasattr(est, 'coef_'): importances_list.append(np.abs(est.coef_.flatten()))
-            if importances_list: return np.mean(importances_list, axis=0)
-        if hasattr(m, 'feature_importances_'): return m.feature_importances_
-        elif hasattr(m, 'coef_'): return np.abs(m.coef_.flatten())
-        return None
-
-    importances = get_importances(model)
-    
-    col_inf1, col_inf2 = st.columns([2, 1])
-    
-    with col_inf1:
-        if importances is not None:
-            if len(importances) == 7:
-                features = ['N', 'P', 'K', 'pH', 'Temperature', 'Humidity', 'Rainfall']
-            elif len(importances) == 8:
-                features = ['N', 'P', 'K', 'pH', 'Temperature', 'Humidity', 'Rainfall', 'Crop']
-            else:
-                features = [f'F{i}' for i in range(len(importances))]
-            
-            fig, ax = plt.subplots(figsize=(10, 6))
-            sns.barplot(x=importances, y=features, palette="viridis", ax=ax)
-            ax.set_title('Feature Importance (What drives yield?)', fontsize=14)
-            st.pyplot(fig)
-        else:
-            st.info("Feature importance data not available for this model.")
-
-    with col_inf2:
-        st.markdown("#### 🔭 Future Outlook")
-        future_year = st.select_slider('Projection Year', options=range(2026, 2036), value=2027)
-        future_temp = st.number_input('Projected Temp (°C)', value=temperature + 0.5)
+    # Sensitivity Plot with Plotly
+    def plot_sensitivity_interactive(base_X, feat_idx, feat_name, r_vals):
+        y_vals = []
+        for v in r_vals:
+            X_t = base_X.copy()
+            X_t[0, feat_idx] = v
+            X_ts = scaler.transform(X_t[:, :n_features]) if scaler else X_t[:, :n_features]
+            y_vals.append(model.predict(X_ts)[0])
         
-        if st.button('Predict Future'):
-            X_future_full = np.array([[N, P, K, pH, future_temp, humidity, rainfall, crop_options.index(crop)]])
-            X_future = X_future_full[:, :n_features]
-            X_f_scaled = scaler.transform(X_future) if scaler else X_future
-            f_yield = model.predict(X_f_scaled)[0]
-            st.success(f"Projected Yield in {future_year}: **{f_yield:.2f} t/ha**")
-            diff = f_yield - yield_pred_float
-            st.write(f"{'Increase' if diff > 0 else 'Decrease'} of {abs(diff):.2f} t/ha due to climate variation.")
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=r_vals, y=y_vals, mode='lines+markers', name='Impact', line=dict(color='#2e7d32', width=3)))
+        fig.add_vline(x=base_X[0, feat_idx], line_dash="dash", line_color="red", annotation_text="Current")
+        fig.update_layout(title=f'Yield Sensitivity: {feat_name}', xaxis_title=feat_name, yaxis_title='Yield (t/ha)', hovermode='x unified', template='plotly_white')
+        return fig
+
+    c_inf1, c_inf2 = st.columns([2, 1])
+    
+    with c_inf1:
+        st.markdown("#### 📡 Predictive Dynamics")
+        s_feat = st.selectbox('Analyze impact of:', ['Rainfall', 'Temperature', 'Nitrogen', 'pH'])
+        f_map = {'Rainfall': (6, np.linspace(0, 500, 50)), 'Temperature': (4, np.linspace(0, 50, 50)), 'Nitrogen': (0, np.linspace(0, 300, 50)), 'pH': (3, np.linspace(3, 10, 50))}
+        idx, rng = f_map[s_feat]
+        st.plotly_chart(plot_sensitivity_interactive(X_raw, idx, s_feat, rng), use_container_width=True)
+        
+        st.divider()
+        st.markdown("#### 📊 Comprehensive Correlations")
+        if df_raw is not None:
+            # Select only numeric for correlation
+            corr = df_raw.select_dtypes(include=[np.number]).corr()
+            fig_h = px.imshow(corr, text_auto=".2f", aspect="auto", color_continuous_scale='Viridis', title="Feature Correlation Matrix")
+            st.plotly_chart(fig_h, use_container_width=True)
+
+    with c_inf2:
+        st.markdown("#### ⚖️ Explaining the Model")
+        # Feature Importance
+        def get_fi(m):
+            if hasattr(m, 'steps'): m = m.steps[-1][1]
+            if hasattr(m, 'estimators_'):
+                list_fi = []
+                for e in m.estimators_:
+                    est = e.steps[-1][1] if hasattr(e, 'steps') else e
+                    if hasattr(est, 'feature_importances_'): list_fi.append(est.feature_importances_)
+                if list_fi: return np.mean(list_fi, axis=0)
+            return getattr(m, 'feature_importances_', None)
+
+        fi = get_fi(model)
+        if fi is not None:
+            lbls = ['N', 'P', 'K', 'pH', 'Temp', 'Hum', 'Rain', 'Crop'][:len(fi)]
+            df_fi = pd.DataFrame({'Feature': lbls, 'Importance': fi}).sort_values('Importance')
+            fig_fi = px.bar(df_fi, x='Importance', y='Feature', orientation='h', color='Importance', color_continuous_scale='Greens', title="Global Drivers")
+            st.plotly_chart(fig_fi, use_container_width=True)
+
+        st.divider()
+        st.markdown("#### 🔭 Future Outlook")
+        f_yr = st.select_slider('Projection Year', options=range(2026, 2036), value=2027)
+        f_t = st.number_input('Future Temp (°C)', value=temperature + 0.5)
+        X_f = np.array([[N, P, K, pH, f_t, humidity, rainfall, crop_encoded]])
+        X_fs = scaler.transform(X_f[:, :n_features]) if scaler else X_f[:, :n_features]
+        fy = model.predict(X_fs)[0]
+        st.metric(f"Projected Yield ({f_yr})", f"{fy:.2f} t/ha")
+        delta = fy - st.session_state.yield_pred
+        st.write(f"Delta: **{delta:+.2f} t/ha** vs current.")
 
 st.divider()
-st.caption("Developed by Smart Agri Advisor Team | © 2026")
+st.caption("FarmIQ Smart Agri Advisor | Optimized for High-Yield Decision Making")
+
+
