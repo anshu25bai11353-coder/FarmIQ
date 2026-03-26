@@ -233,6 +233,6 @@ with tab2:
         st.write(f"Delta: **{delta:+.2f} t/ha** vs current.")
 
 st.divider()
-st.caption("FarmIQ Smart Agri Advisor | Optimized for High-Yield Decision Making")
+st.caption("FarmIQ Smart Agri Advisor by Anshu Sharma| Optimized for High-Yield Decision Making")
 
 
