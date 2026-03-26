@@ -102,3 +102,19 @@ Enter invalid values - should handle gracefully
 
 ⭐ Star this repository if you find it helpful!  
 
+# Image of Working Model
+
+<img width="1470" height="956" alt="Screenshot 2026-03-26 at 4 00 52 PM" src="https://github.com/user-attachments/assets/cbd9cd2c-ddb3-4778-92e4-165b9e24ea7b" />
+
+<img width="1470" height="956" alt="Screenshot 2026-03-26 at 4 01 02 PM" src="https://github.com/user-attachments/assets/7407e250-c859-41d2-91b0-0d502d497fa7" />
+
+<img width="1470" height="956" alt="Screenshot 2026-03-26 at 4 01 30 PM" src="https://github.com/user-attachments/assets/1da461b0-d699-4323-a3f3-b1a373281db3" />
+
+<img width="1470" height="956" alt="Screenshot 2026-03-26 at 4 02 07 PM" src="https://github.com/user-attachments/assets/ab95bda0-ed1b-47a9-9973-f33c59b38cec" />
+
+<img width="1470" height="956" alt="Screenshot 2026-03-26 at 4 02 19 PM" src="https://github.com/user-attachments/assets/46595e34-ca90-4cb6-b1e1-89f9f5bcff51" />
+
+<img width="1470" height="956" alt="Screenshot 2026-03-26 at 4 02 32 PM" src="https://github.com/user-attachments/assets/d821200a-431c-45d0-9a0c-45f5e766fac7" />
+
+<img width="1470" height="956" alt="Screenshot 2026-03-26 at 4 04 09 PM" src="https://github.com/user-attachments/assets/f891e246-7b08-4b1a-993b-57883bcea55f" />
+
