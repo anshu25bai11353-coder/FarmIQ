@@ -98,6 +98,8 @@ Ensure all plots render correctly
 Submit empty fields - should show validation messages   
 Enter invalid values - should handle gracefully  
 
+shortcut : anshu-farmiq.streamlit.app/
+
 📧 For queries, contact: [anshu.25bai11353@vitbhopal.ac.in]  
 
 ⭐ Star this repository if you find it helpful!  
