@@ -1,5 +1,6 @@
 streamlit
-google-generativeai
-pillow
-numpy
 pandas
+numpy
+scikit-learn
+joblib
+pillow
