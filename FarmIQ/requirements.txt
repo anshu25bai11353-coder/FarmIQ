@@ -1,13 +1,5 @@
 streamlit
+google-generativeai
+pillow
+numpy
 pandas
-numpy<2.0
-matplotlib
-seaborn
-scikit-learn==1.6.0
-xgboost
-plotly
-joblib
-rich==15.0.0
-pygments==2.20.0
-markdown-it-py==4.2.0
-mdurl==0.1.2
