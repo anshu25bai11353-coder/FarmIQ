@@ -108,7 +108,7 @@ df_raw = get_dataset()
 
 # Sidebar
 with st.sidebar:
-    st.image("https://img.freepik.com/premium-vector/modern-farm-logo-vector_658271-1527.jpg?w=360", width=80)
+    st.image("https://depositphotos.com/vector/farm-logo-icon-design-200701012.html", width=80)
     st.header("Farm Settings")
     land_area = st.number_input('Land Area (hectares)', min_value=0.1, max_value=100.0, value=1.0, step=0.1)
     crop_options = ['Rice', 'Wheat', 'Maize', 'Sugarcane', 'Cotton', 'Groundnut', 'Soybean', 'Potato', 'Onion', 'Tomato']
