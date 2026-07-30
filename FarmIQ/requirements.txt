@@ -5,3 +5,12 @@ scikit-learn
 xgboost
 joblib
 pillow
+streamlit
+pandas
+numpy
+matplotlib
+seaborn
+scikit-learn
+xgboost
+plotly
+joblib
